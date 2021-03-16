@@ -1,33 +1,291 @@
+import 'package:fast_base58/fast_base58.dart';
 import 'package:uuid/uuid.dart';
+import 'package:cryptography/cryptography.dart' as c;
 
-class Keys {
+/// Represents the public key section specified in peer-did-method-spec
+///   - https://identity.foundation/peer-did-method-spec/#publickey
+///
+/// The publicKey section of a peer DID document, in either stored or resolved form, is  as
+/// you would expect from a reading of the DID spec. Peer DID docs MUST define all of their
+/// internal and external keys in this  section;  although  the  DID  spec  permits  inline
+/// definitions in the authentication and authorization sections of a  DID  doc,  this  DID
+/// method disallows that option to simplify the possible permutations of a change fragment.
+class PublicKey {
 
 }
 
-/// https://identity.foundation/peer-did-method-spec/#authorization
-class AuthorizationRules {
+/// This abstract class represents a single public key. This is designed to have  different
+/// implementations such as public key for Ed25519. The implementations of this abstract
+/// class is to be consumed by the PublicKey instance.
+abstract class Key {
+
+  /// 8-character unique representation of public key across the did document.
+  ///
+  /// For example, if the key is defined with a publicKeyBase58 property value that  begins
+  /// with H3C2AVvL, then its id would be H3C2AVvL; a key with a publicKeyHex property that
+  /// begins with 02b97c30 would have an id of 02b97c30, and  a  key  with  a  publicKeyPem
+  /// property that begins, after  its  -----BEGIN PUBLIC KEY  delimiter,  with  the  value
+  /// izfrNTmQ, would have an id of izfrNTmQ.
+  ///
+  /// Sample:
+  /// {
+  ///     "id": "H3C2AVvL",
+  ///      ...
+  /// }
+  String get id;
+
+  /// Hashtag + id string
+  String get hid => '#$id';
+
+  /// Key type. This is defined by this abstract class' implementation.
+  /// {
+  ///     ...
+  ///     "type": "Secp256k1VerificationKey2018",
+  ///     ...
+  /// }
+  String get type;
+
+  /// Just '#id' as seen in the peer did doc spec.
+  /// {
+  ///    ...
+  ///    "controller": "#id",
+  ///    ...
+  /// }
+  String get controller => '#id';
+
+  /// Base58 representation of the public key. There are others such as publicKeyHex
+  /// and publicKeyPem, but we only implemented base58 only.
+  /// {
+  ///     ...
+  ///     "publicKeyBase58": "H3C2AVvLMv6gmMNam3uVAjZpfkcJCwDwnZn6z3wXmqPV"
+  /// }
+  String get publicKeyBase58;
+
+  /// Returns map version of this public key:
+  /// {
+  ///     "id": "H3C2AVvL",
+  ///     "type": "Ed25519VerificationKey2018",
+  ///     "controller": "#id",
+  ///     "publicKeyBase58": "H3C2AVvLMv6gmMNam3uVAjZpfkcJCwDwnZn6z3wXmqPV"
+  /// }
+  Map get map;
+
+  /// Verifies a signed message using this public key.
+  ///
+  /// For usage, please refer to implementation.
+  Future<bool> verify(String base58Message, String base58Signature);
+}
+
+/// This class is Ed25519 implementation that has type of 'Ed25519VerificationKey2018'. The
+/// instance of this class is to be consumed by PublicKey instance.
+class Ed25519Key extends Key {
+
+  c.PublicKey _publicKey;
+
+  /// Constructor is disabled. Please use:
+  ///   - createFromBytes()
+  ///   - createFromBase58EncodedPublicKey
+  Ed25519Key._constructor();
+
+  /// Creates Ed25519PublicKey instance from public key bytes (List<int>)
+  ///
+  /// TODO: Sample usage
+  static Ed25519Key createFromBytes(List<int> bytes) {
+
+    // Creates Ed25519Key instance (calling the constructor)
+    final instance = Ed25519Key._constructor();
+
+    // Creates PublicKey instance from 'package:cryptography/cryptography.dart'
+    instance._publicKey = c.PublicKey(bytes);
+
+    // Returns our new instance
+    return instance;
+  }
+
+  /// Creates Ed25519PublicKey instance from base58 encoded Ed25519 public key
+  ///
+  /// TODO: Sample usage
+  static Ed25519Key createFromBase58EncodedPublicKey(String base58PublicKey) {
+
+    // Creates Ed25519Key instance (calling the constructor)
+    final instance = Ed25519Key._constructor();
+
+    // Creates PublicKey instance from 'package:cryptography/cryptography.dart'
+    instance._publicKey = c.PublicKey(Base58Decode(base58PublicKey));
+
+    // Returns our new instance
+    return instance;
+  }
+
+  /// 8-character unique representation of public key across the did document.
+  ///
+  /// For example, if the key is defined with a publicKeyBase58 property value that  begins
+  /// with H3C2AVvL, then its id would be H3C2AVvL; a key with a publicKeyHex property that
+  /// begins with 02b97c30 would have an id of 02b97c30, and  a  key  with  a  publicKeyPem
+  /// property that begins, after  its  -----BEGIN PUBLIC KEY  delimiter,  with  the  value
+  /// izfrNTmQ, would have an id of izfrNTmQ.
+  ///
+  /// Sample:
+  /// {
+  ///     "id": "H3C2AVvL",
+  ///      ...
+  /// }
+  @override
+  String get id => publicKeyBase58.substring(0, 7);
+
+  /// Key type. This is defined by this abstract class' implementation.
+  /// {
+  ///     ...
+  ///     "type": "Secp256k1VerificationKey2018",
+  ///     ...
+  /// }
+  @override
+  String get type => 'Ed25519VerificationKey2018';
+
+  /// Just '#id' as seen in the peer did doc spec.
+  /// {
+  ///    ...
+  ///    "controller": "#id",
+  ///    ...
+  /// }
+  @override
+  String get controller => '#id';
+
+  /// Base58 representation of the public key. There are others such as publicKeyHex
+  /// and publicKeyPem, but we only implemented base58 only.
+  /// {
+  ///     ...
+  ///     "publicKeyBase58": "H3C2AVvLMv6gmMNam3uVAjZpfkcJCwDwnZn6z3wXmqPV"
+  ///     ...
+  /// }
+  @override
+  String get publicKeyBase58 => Base58Encode(_publicKey.bytes);
+
+  /// Returns map version of this public key:
+  /// {
+  ///     "id": "H3C2AVvL",
+  ///     "type": "Ed25519VerificationKey2018",
+  ///     "controller": "#id",
+  ///     "publicKeyBase58": "H3C2AVvLMv6gmMNam3uVAjZpfkcJCwDwnZn6z3wXmqPV"
+  /// }
+  @override
+  Map get map => { 'id':  id, 'type': type, 'controller': controller, 'publicKeyBase58': publicKeyBase58 }
+
+  /// Verifies a signed message using this public key.
+  ///
+  /// TODO: Write how this method is practically used.
+  @override
+  Future<bool> verify(String base58Message, String base58Signature) async => await c.ed25519.verify(Base58Decode(base58Message), c.Signature(Base58Decode(base58Signature), publicKey: _publicKey));
+}
+
+
+/// Represents authorization specified in peer-did-method-spec
+///   - https://identity.foundation/peer-did-method-spec/#authorization
+///
+/// This class contains the authorization profile and authorization rules
+///
+/// Peer DID docs organize their authorization section into two lists. The first, profiles,
+/// gives a trust profile for each key, as expressed by named roles the  key  holds.  These
+/// named roles are arbitrary strings chosen by the implementer; since they are  only  used
+/// to match against rules in the second list, their meaning in normal  language  does  not
+/// need to be understood by a party wishing to support correct semantics.
+///
+/// This class when rendered as string should look like this as specified  in  the  peerdid
+/// spec:
+/// “authorization”: {
+///     "profiles": [
+///         {"key": "#Mv6gmMNa", "roles", ["edge"]},              // an "edge" key
+///         {"key": "#izfrNTmQ", "roles", ["edge", "biometric"]}, // an "edge" and a "biometric" key
+///         {"key": "#02b97c30", "roles", ["cloud"]},             // a "cloud" key
+///         {"key": "#H3C2AVvL", "roles", ["offline"]},           // an "offline" key
+///     ],
+///     "rules": [
+///         {
+///             "grant": ["register"],
+///             "when": {"id": "#Mv6gmMNa"},
+///             "id": "7ac4c6be"
+///         },
+///         {
+///             "grant": ["route", "authcrypt"],
+///             "when": {"roles": "cloud"},
+///             "id": "98c2c9cc"
+///         },
+///         {
+///             "grant": ["authcrypt", "plaintext", "sign"],
+///             "when": {"roles": "edge"},
+///             "id": "e1e7d7bc"
+///         },
+///         {
+///             "grant": ["key_admin", "se_admin", "rule_admin"],
+///             "when": {
+///                 "any": [{"roles": "offline"}, {"roles": "biometric"}],
+///                 "n": 2
+///             }
+///             "id": "8586d26c"
+///         }
+///     ]
+/// }
+class Authorization {
 
   /// List of rules object
   List<AuthorizationRule> _rules;
 
   /// Constructor
-  AuthorizationRules.create();
+  Authorization.create();
 
-  /// Add new rule from AuthorizationRule object
+  /// Add new authorization profile
+  ///
+  /// When rendered, it looks something like this as specified in the spec.
+  /// "profiles": [
+  ///     {"key": "#Mv6gmMNa", "roles": ["edge"]},              // an "edge" key
+  ///     {"key": "#izfrNTmQ", "roles": ["edge", "biometric"]}, // an "edge" and a "biometric" key
+  ///     {"key": "#02b97c30", "roles": ["cloud"]},             // a "cloud" key
+  ///     {"key": "#H3C2AVvL", "roles": ["offline"]},           // an "offline" key
+  /// ],
+  Authorization addProfile() { throw UnimplementedError(); }
+
+  /// Add new authorization rule
   ///
   /// Usage:
   /// AuthorizationRules.create()
-  ///   .add(AuthorizationRule.grant(...).when(...))
-  ///   .add(AuthorizationRule.grant(...).when(...))
+  ///   .addRule(AuthorizationRule.grant(...).when(...))
+  ///   .addRule(AuthorizationRule.grant(...).when(...))
   ///   ...
-  ///   .add(AuthorizationRule.grant(...).when(...));
+  ///   .addRule(AuthorizationRule.grant(...).when(...));
   ///
   /// Or:
   /// AuthorizationRules.create().add(AuthorizationRule.fromMap(...));
-  AuthorizationRules add(AuthorizationRule rule) { _rules.add(rule); return this; }
+  ///
+  /// When rendered, it looks something like this as specified in the spec.
+  /// "rules": [
+  ///     {
+  ///         "grant": ["register"],
+  ///         "when": {"id": "#Mv6gmMNa"},
+  ///         "id": "7ac4c6be"
+  ///     },
+  ///     {
+  ///         "grant": ["route", "authcrypt"],
+  ///         "when": {"roles": "cloud"},
+  ///         "id": "98c2c9cc"
+  ///     },
+  ///     {
+  ///         "grant": ["authcrypt", "plaintext", "sign"],
+  ///         "when": {"roles": "edge"},
+  ///         "id": "e1e7d7bc"
+  ///     },
+  ///     {
+  ///         "grant": ["key_admin", "se_admin", "rule_admin"],
+  ///         "when": {
+  ///             "any": [{"roles": "offline"}, {"roles": "biometric"}],
+  ///             "n": 2
+  ///         }
+  ///         "id": "8586d26c"
+  ///     }
+  /// ]
+  Authorization addRule(AuthorizationRule rule) { _rules.add(rule); return this; }
 
   /// Returns the map version of this class
-  Map toMap() { var list = []; for (var rule in _rules) { list.add(rule.toMap()); } return { 'rules': list }; }
+  Map get map { var list = []; for (var rule in _rules) { list.add(rule.map); } return { 'rules': list }; }
 }
 
 /// https://identity.foundation/peer-did-method-spec/#privilege-inventory
@@ -200,9 +458,5 @@ class AuthorizationRule {
   AuthorizationRule when(Map condition) { _when = condition; _id = Uuid().v4(); return this; }
 
   /// Returns the map version of this class
-  Map toMap() => {
-    'grant': _grants,
-    'when': _when,
-    'id': _id
-  };
+  Map get map => { 'grant': _grants, 'when': _when, 'id': _id };
 }
