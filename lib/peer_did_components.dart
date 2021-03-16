@@ -12,6 +12,36 @@ import 'package:cryptography/cryptography.dart' as c;
 /// method disallows that option to simplify the possible permutations of a change fragment.
 class PublicKey {
 
+  /// Holds the public keys
+  List<Key> _publicKeyInstance;
+
+  /// Constructor
+  ///   - Creates new instance of this class. After creation, use .addKey(...) method to
+  ///     add new public key.
+  PublicKey.create();
+
+  /// Adds new public key to this instance
+  ///
+  /// Usage:
+  ///   var keys = PublicKey.create()
+  ///                     .addKey(Ed25519Key.createFromBase58EncodedPublicKey(...))
+  ///                     .addKey(Ed25519Key.createFromBase58EncodedPublicKey(...))
+  ///                     .addKey(Ed25519Key.createFromBase58EncodedPublicKey(...))
+  PublicKey addKey(Key publicKeyInstance) { _publicKeyInstance.add(publicKeyInstance); return this; }
+
+  /// Returns the list of public key.
+  ///
+  /// Sample output:
+  /// [
+  ///     {
+  ///       "id": "H3C2AVvL",
+  ///       "type": "Ed25519VerificationKey2018",
+  ///       "controller": "#id",
+  ///       "publicKeyBase58": "H3C2AVvLMv6gmMNam3uVAjZpfkcJCwDwnZn6z3wXmqPV"
+  ///     },
+  ///     ... so on
+  /// ]
+  List<Map> get list { var map = []; for(var publicKeyInstance in _publicKeyInstance) { map.add(publicKeyInstance.map); } return map; }
 }
 
 /// This abstract class represents a single public key. This is designed to have  different
@@ -70,10 +100,59 @@ abstract class Key {
   /// }
   Map get map;
 
+  /// Key's profile (private)
+  AuthorizationProfile _profile;
+
+  /// Returns the key's profile.
+  ///
+  /// As per implementation, every key has / may have profile that is to be used by rules
+  /// as condition for granting specific privileges.
+  ///
+  /// To add role for this public key (Example code):
+  /// // Assume that key is an instance of implementation of Key class
+  /// key
+  ///   .addRole(role: 'admin')                     // You may add single role
+  ///   .addRole(roles: ['offline', 'biometrics'])  // Or list of roles
+  ///
+  /// With the given inputs above, this will be the JSON representation of this profile:
+  /// {"key": "#02b97c30", "roles": ["admin", "offline", "biometrics"]}
+  ///
+  AuthorizationProfile get profile => _profile;
+
   /// Verifies a signed message using this public key.
   ///
   /// For usage, please refer to implementation.
   Future<bool> verify(String base58Message, String base58Signature);
+
+  /// Add role for this public key. By default, all keys don't have role unless a role  has
+  /// been added.
+  ///
+  /// Usage:
+  ///   // Assume that key is an instance of implementation of Key class
+  ///   key
+  ///     .addRole(role: 'admin')                     // You may add single role
+  ///     .addRole(roles: ['offline', 'biometrics'])  // Or list of roles
+  Key addRole({String role, List<String> roles}) {
+
+    // Creates new instance of authorization profile if _profile is not yet instantiated
+    _profile = _profile == null ?? AuthorizationProfile.create(this);
+
+    // Adds the single role
+    if (role != null) _profile.addRole(role: role);
+
+    // Adds multiple role
+    if (roles != null) _profile.addRole(roles: roles);
+
+    // Returns this instance for method chaining
+    return this;
+  }
+
+  /// Remove all roles for this public key
+  ///
+  /// Usage:
+  ///   // Assume that key is instance of implementation of key class
+  ///   key.removeRoles()
+  void removeRoles() { _profile = null; }
 }
 
 /// This class is Ed25519 implementation that has type of 'Ed25519VerificationKey2018'. The
@@ -169,7 +248,7 @@ class Ed25519Key extends Key {
   ///     "publicKeyBase58": "H3C2AVvLMv6gmMNam3uVAjZpfkcJCwDwnZn6z3wXmqPV"
   /// }
   @override
-  Map get map => { 'id':  id, 'type': type, 'controller': controller, 'publicKeyBase58': publicKeyBase58 }
+  Map get map => { 'id':  id, 'type': type, 'controller': controller, 'publicKeyBase58': publicKeyBase58 };
 
   /// Verifies a signed message using this public key.
   ///
@@ -227,13 +306,76 @@ class Ed25519Key extends Key {
 /// }
 class Authorization {
 
+  /// List of profiles object
+  final List<AuthorizationProfile> _profiles = <AuthorizationProfile>[];
+
   /// List of rules object
-  List<AuthorizationRule> _rules;
+  final List<AuthorizationRule> _rules = <AuthorizationRule>[];
 
   /// Constructor
   Authorization.create();
 
+  /// Get all profiles from given privilege
+  List<AuthorizationProfile> _getProfileFromPrivilege(String privilege) {
+
+    // First: Get all conditions from given privilege
+    final conditions = <Map>[];
+
+    // Second: Get all roles from condition
+    final roles = <String>[];
+
+    // Third: Get all key ids from condition
+    final key_ids = <String>[];
+
+    // Loop through rules and search for conditions
+    for (var rule in _rules) {
+
+      // Check if rule is not granted by given privilege
+      if (!rule.grants.contains(privilege)) continue;
+    }
+  }
+
+  /// Get all keys from given profiles
+
+  /// Returns all key instances that are granted with register privilege
+  List<Key> getRegisterKey() {
+
+    // Get all profile with register privilege
+    // _getProfileFromPrivilege('register');
+
+    // Get all keys with given profile
+    // _getKeyFromProfile(['profile1', 'profile2', 'profile3']);
+  }
+
+  /// Returns all key instances that are granted with route privilege
+  List<Key> getRouteKey() { throw UnimplementedError(); }
+
+  /// Returns all key instances that are granted with authcrypt privilege
+  List<Key> getAuthcryptKey() { throw UnimplementedError(); }
+
+  /// Returns all key instances that are granted with plaintext privilege
+  List<Key> getPlaintextKey() { throw UnimplementedError(); }
+
+  /// Returns all key instances that are granted with sign privilege
+  List<Key> getSignKey() { throw UnimplementedError(); }
+
+  /// Returns all key instances that are granted with key_admin privilege
+  List<Key> getKeyadminKey() { throw UnimplementedError(); }
+
+  /// Returns all key instances that are granted with se_admin privilege
+  List<Key> getSeadminKey() { throw UnimplementedError(); }
+
+  /// Returns all key instances that are granted with rule_admin privilege
+  List<Key> getRuleadminKey() { throw UnimplementedError(); }
+
+  /// Returns all key instances that don't have 'revoke-implicit' for rotate.
+  /// All keys have rotate privilege unless it's revoked explicitly through
+  /// 'revoke-implicit'.
+  List<Key> getRotateKey() { throw UnimplementedError(); }
+
   /// Add new authorization profile
+  ///
+  /// TODO: Write usage guide
   ///
   /// When rendered, it looks something like this as specified in the spec.
   /// "profiles": [
@@ -242,7 +384,14 @@ class Authorization {
   ///     {"key": "#02b97c30", "roles": ["cloud"]},             // a "cloud" key
   ///     {"key": "#H3C2AVvL", "roles": ["offline"]},           // an "offline" key
   /// ],
-  Authorization addProfile() { throw UnimplementedError(); }
+  Authorization addProfile(Key publicKeyInstance) {
+
+    // Adds a new profile to list if the public key instance has profile
+    if (publicKeyInstance.profile != null) _profiles.add(publicKeyInstance.profile);
+
+    // Returns this instance for method chaining
+    return this;
+  }
 
   /// Add new authorization rule
   ///
@@ -287,6 +436,56 @@ class Authorization {
   /// Returns the map version of this class
   Map get map { var list = []; for (var rule in _rules) { list.add(rule.map); } return { 'rules': list }; }
 }
+
+class AuthorizationProfile {
+
+  /// Public key that is referenced upon creation of this class' instance.
+  Key _publicKeyInstance;
+
+  /// Profile roles. (private)
+  final List<String> _roles = <String>[];
+
+  /// Profile Key.
+  ///   - This key refers to the public key's ID that is prefixed by hash symbol.
+  ///
+  /// "profiles": [
+  ///     ...
+  ///     {"key": "#Mv6gmMNa", ...}
+  ///     ...
+  /// ]
+  String get key => _publicKeyInstance.hid;
+
+  /// Profile roles.
+  ///
+  /// "profiles": [
+  ///     ...
+  ///     { ..., "roles", ["edge", "biometric"]},
+  ///     ...
+  /// ],
+  List<String> get roles => _roles;
+
+  /// Constructor
+  ///   - Creates instance of Authorization profile.
+  ///
+  /// Usage:
+  ///   // Assume that this is called inside the implementation of Key class.
+  ///   AuthorizationProfile.create(this);
+  AuthorizationProfile.create(Key publicKeyInstance) {
+
+    // Sets the associated public key for this profile.
+    _publicKeyInstance = publicKeyInstance;
+  }
+
+  void addRole({String role, List<String> roles}) {
+
+    // Adds single role
+    if (role != null) _roles.add(role);
+
+    // Adds multiple role
+    if (roles != null) _roles + roles;
+  }
+}
+
 
 /// https://identity.foundation/peer-did-method-spec/#privilege-inventory
 enum PrivilegeInventory {
@@ -364,7 +563,7 @@ enum PrivilegeInventory {
 
 class AuthorizationRule {
 
-  /// List of grants to be permitted
+  /// List of permitted privileges
   List<String> _grants;
 
   /// Condition(s) when to grant permission
@@ -456,6 +655,13 @@ class AuthorizationRule {
   ///   PrivilegeInventory.rule_admin
   /// ]).when(...)
   AuthorizationRule when(Map condition) { _when = condition; _id = Uuid().v4(); return this; }
+
+  /// List of permitted privileges
+  List<String> get grants => _grants;
+
+  /// Condition(s) when to grant permission (when)
+  /// https://identity.foundation/peer-did-method-spec/#authorization
+  Map get conditions => _when;
 
   /// Returns the map version of this class
   Map get map => { 'grant': _grants, 'when': _when, 'id': _id };
