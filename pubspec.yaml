@@ -1,6 +1,6 @@
 name: peerdid
 description: Dart implementation for PeerDID from identity.foundation specification
-version: 0.0.1
+version: 0.0.2
 homepage: https://github.com/ghabxph/dart_peerdid
 
 environment:

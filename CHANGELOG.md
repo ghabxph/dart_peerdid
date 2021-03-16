@@ -1,3 +1,7 @@
+## 0.0.2
+
+- Test upload. Not ready for use.
+
 ## 0.0.1
 
-- Not ready for use.
+- Test upload. Not ready for use.
